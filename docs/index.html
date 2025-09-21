@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>EarCopy Player (Web MVP)</title>
+<link rel="icon" href="data:," />
+<style>
+  :root { --bg:#0b0c10; --fg:#e6e6e6; --muted:#9aa0a6; --accent:#4aa3ff; }
+  body { margin:16px; background:var(--bg); color:var(--fg); font-family: ui-sans-serif,system-ui,Segoe UI,Arial; }
+  .wrap { max-width:840px; margin:auto; }
+  .row { display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin:10px 0; }
+  .btn { padding:10px 14px; border:1px solid #333; border-radius:10px; background:#111; color:var(--fg); cursor:pointer; }
+  .btn[aria-pressed="true"] { outline:2px solid var(--accent); }
+  .slider { width:240px; }
+  #wave { height:140px; background:#111; border-radius:10px; overflow:hidden; }
+  .hint { color:var(--muted); font-size:12px; }
+  footer { margin-top:18px; display:flex; justify-content:space-between; align-items:center; color:var(--muted); }
+  a { color:var(--accent); text-decoration:none; }
+  label { display:flex; align-items:center; gap:8px; }
+</style>
+<script src="https://unpkg.com/wavesurfer.js@7"></script>
+<script src="https://unpkg.com/wavesurfer.js@7/dist/plugins/regions.min.js"></script>
+</head>
+<body>
+<div class="wrap">
+  <h1>EarCopy Player</h1>
+  <div class="row">
+    <input id="file" type="file" accept="audio/*" />
+    <span class="hint">Load an audio file (MP3/WAV/M4A...).</span>
+  </div>
+
+  <div id="wave"></div>
+
+  <div class="row" role="toolbar" aria-label="Transport">
+    <button id="play" class="btn">Play</button>
+    <button id="setA" class="btn">Set A</button>
+    <button id="setB" class="btn">Set B</button>
+    <button id="toggleLoop" class="btn" aria-pressed="false">Loop</button>
+    <label>Speed <span id="rateVal">1.00×</span>
+      <input id="rate" class="slider" type="range" min="0.5" max="1.5" step="0.01" value="1" />
+    </label>
+  </div>
+  <div class="hint">
+    Numpad: 0=Play/Pause, 1=A, 2=B, 3=Loop, 4/6=⟲/⟳ (±1s, Shift=±5s), 7/9=Speed↓/↑
+  </div>
+
+  <footer>
+    <span class="hint">No tracking. Everything runs locally in your browser.</span>
+    <a id="donate" href="#" target="_blank" rel="noopener">Donate</a>
+  </footer>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const file = $('#file'), play = $('#play'), setA = $('#setA'), setB = $('#setB');
+const toggleLoop = $('#toggleLoop'), rate = $('#rate'), rateVal = $('#rateVal');
+
+const ws = WaveSurfer.create({
+  container: '#wave',
+  height: 140,
+  waveColor: '#404552',
+  progressColor: '#e6e6e6',
+  cursorColor: '#4aa3ff',
+  barWidth: 2,
+  barGap: 1,
+  normalize: true,
+});
+const regions = ws.registerPlugin(WaveSurfer.Regions.create());
+let A = null, B = null, region = null;
+
+file.addEventListener('change', () => {
+  const f = file.files?.[0]; if (!f) return;
+  ws.load(URL.createObjectURL(f));
+});
+play.addEventListener('click', () => ws.playPause());
+ws.on('play', () => play.textContent = 'Pause');
+ws.on('pause', () => play.textContent = 'Play');
+
+setA.addEventListener('click', () => { A = ws.getCurrentTime(); syncAB(); });
+setB.addEventListener('click', () => { B = ws.getCurrentTime(); syncAB(); });
+
+toggleLoop.addEventListener('click', () => {
+  const on = toggleLoop.getAttribute('aria-pressed') === 'true';
+  toggleLoop.setAttribute('aria-pressed', String(!on));
+  syncAB();
+});
+
+rate.addEventListener('input', () => {
+  const r = parseFloat(rate.value);
+  ws.setPlaybackRate(r);
+  rateVal.textContent = r.toFixed(2) + '×';
+});
+
+function syncAB() {
+  if (region) region.remove(), region = null;
+  if (A != null && B != null && B > A) {
+    region = regions.add({
+      start: A, end: B,
+      loop: toggleLoop.getAttribute('aria-pressed') === 'true',
+      drag: true, resize: true,
+      color: 'rgba(74,163,255,0.15)',
+    });
+    region.on('update-end', r => { A = r.start; B = r.end; });
+  }
+}
+
+// FF/REW helpers
+const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
+function seekBy(sec) {
+  const t = clamp(ws.getCurrentTime() + sec, 0, ws.getDuration() || 0);
+  ws.setTime(t);
+}
+
+// keyboard
+function isTypingTarget(el) {
+  if (!el) return false;
+  const tag = el.tagName?.toLowerCase();
+  return tag === 'input' || tag === 'textarea' || el.isContentEditable;
+}
+window.addEventListener('keydown', (e) => {
+  if (isTypingTarget(document.activeElement)) return;
+  if (e.repeat) return;
+
+  const fast = e.shiftKey ? 5 : 1;
+  const code = e.code;
+
+  if (code === 'Numpad0') { e.preventDefault(); ws.playPause(); }
+  if (code === 'Numpad4') { e.preventDefault(); seekBy(-fast); }
+  if (code === 'Numpad6') { e.preventDefault(); seekBy(+fast); }
+  if (code === 'Numpad1') { e.preventDefault(); A = ws.getCurrentTime(); syncAB(); }
+  if (code === 'Numpad2') { e.preventDefault(); B = ws.getCurrentTime(); syncAB(); }
+  if (code === 'Numpad3') {
+    e.preventDefault();
+    const on = toggleLoop.getAttribute('aria-pressed') === 'true';
+    toggleLoop.setAttribute('aria-pressed', String(!on));
+    syncAB();
+  }
+  if (code === 'Numpad7' || code === 'Numpad9') {
+    e.preventDefault();
+    const cur = ws.getPlaybackRate();
+    const next = clamp(cur + (code === 'Numpad7' ? -0.05 : +0.05), 0.5, 1.5);
+    ws.setPlaybackRate(next);
+    rate.value = next;
+    rateVal.textContent = next.toFixed(2) + '×';
+  }
+});
+</script>
+</body>
+</html>
