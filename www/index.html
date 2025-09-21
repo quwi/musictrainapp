@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>音源再生ツール</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>音源再生ツール</h1>
+
+        <div class="audio-player">
+            <div class="file-input-section">
+                <input type="file" id="audioFile" accept="audio/*" multiple>
+                <label for="audioFile" class="file-label">音源ファイルを選択</label>
+            </div>
+
+            <div class="playlist" id="playlist"></div>
+
+            <div class="player-controls">
+                <audio id="audioElement" controls></audio>
+
+                <div class="control-buttons">
+                    <button id="prevBtn">⏮️</button>
+                    <button id="playPauseBtn">▶️</button>
+                    <button id="nextBtn">⏭️</button>
+                </div>
+
+                <div class="volume-control">
+                    <label for="volumeSlider">音量:</label>
+                    <input type="range" id="volumeSlider" min="0" max="100" value="80">
+                </div>
+
+                <div class="speed-control">
+                    <label for="speedSlider">再生速度:</label>
+                    <input type="range" id="speedSlider" min="25" max="200" value="100" step="5">
+                    <span id="speedValue">1.0x</span>
+                </div>
+
+                <div class="current-track">
+                    <span id="currentTrackName">ファイルを選択してください</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="cordova.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
