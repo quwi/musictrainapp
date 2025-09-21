@@ -95,7 +95,7 @@ rate.addEventListener('input', () => {
 function syncAB() {
   if (region) region.remove(), region = null;
   if (A != null && B != null && B > A) {
-    region = regions.add({
+    region = regions.createRegion({
       start: A, end: B,
       loop: toggleLoop.getAttribute('aria-pressed') === 'true',
       drag: true, resize: true,
