@@ -54,7 +54,7 @@
 <script>
 const $ = s => document.querySelector(s);
 const file = $('#file'), play = $('#play'), setA = $('#setA'), setB = $('#setB');
-const toggleLoop = $('#toggleLoop'), rate = $('#rate'), rateVal = $('#rateVal');
+const toggleLoop = $('#toggleLoop'), rate = $('#rate'), rateVal = $('#rateVal';
 
 const ws = WaveSurfer.create({
   container: '#wave',
@@ -94,25 +94,34 @@ rate.addEventListener('input', () => {
 
 function syncAB() {
   if (region) region.remove(), region = null;
-  if (A != null && B != null && B > A) {
+  let start = A, end = B;
+  // Aのみ設定なら仮BをA+3秒（または終了位置）
+  if (A != null && (B == null || B <= A)) {
+    end = Math.min((A || 0) + 3, ws.getDuration() || 0);
+  }
+  if (start != null && end != null && end > start) {
     region = regions.addRegion({
-      start: A, end: B,
-      loop: toggleLoop.getAttribute('aria-pressed') === 'true',
+      start: start, end: end,
+      loop: false,
       drag: true, resize: true,
       color: 'rgba(74,163,255,0.15)',
     });
     region.on('update-end', r => { A = r.start; B = r.end; });
+    region.on('out', () => {
+      if (toggleLoop.getAttribute('aria-pressed') === 'true') {
+        ws.setTime(region.start);
+        ws.play();
+      }
+    });
   }
 }
 
-// FF/REW helpers
 const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
 function seekBy(sec) {
   const t = clamp(ws.getCurrentTime() + sec, 0, ws.getDuration() || 0);
   ws.setTime(t);
 }
 
-// keyboard
 function isTypingTarget(el) {
   if (!el) return false;
   const tag = el.tagName?.toLowerCase();
